@@ -35,3 +35,21 @@ export interface FilterValues {
   year: number | null;
   dateRange: [number, number] | null;
 }
+
+export interface Benchmark {
+  type: 'overall' | 'state' | 'trend';
+  name: string;
+  value: number;
+  unit: string;
+  state?: string;
+  period?: string;
+}
+
+export interface Projection {
+  year: number;
+  deforestation: number;
+  reforestation: number;
+  netChange: number;
+  description: string;
+  isSpecial?: boolean;
+}

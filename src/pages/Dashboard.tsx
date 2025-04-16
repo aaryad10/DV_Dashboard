@@ -1,10 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   ForestData, 
   AggregatedMetrics, 
   ChartData, 
   FilterOptions, 
-  FilterValues 
+  FilterValues,
+  Benchmark,
+  Projection
 } from '@/types/forest-data';
 import { 
   calculateMetrics, 
@@ -12,12 +15,16 @@ import {
   preprocessData, 
   prepareStateChartData, 
   prepareYearChartData, 
-  extractFilterOptions 
+  extractFilterOptions,
+  calculateBenchmarks,
+  calculateProjections
 } from '@/utils/data-parser';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import DashboardSidebar from '@/components/dashboard/DashboardSidebar';
 import FileUpload from '@/components/dashboard/FileUpload';
 import MetricsDisplay from '@/components/dashboard/MetricsDisplay';
+import BenchmarksDisplay from '@/components/dashboard/BenchmarksDisplay';
+import ProjectionsDisplay from '@/components/dashboard/ProjectionsDisplay';
 import BarChart from '@/components/dashboard/BarChart';
 import LineChart from '@/components/dashboard/LineChart';
 import PieChart from '@/components/dashboard/PieChart';
@@ -38,6 +45,11 @@ const Dashboard: React.FC = () => {
   const [stateChartData, setStateChartData] = useState<ChartData[]>([]);
   const [yearChartData, setYearChartData] = useState<ChartData[]>([]);
   const [activeVisualization, setActiveVisualization] = useState<'bar' | 'line' | 'pie'>('bar');
+  
+  // Benchmark and projection states
+  const [benchmarks, setBenchmarks] = useState<Benchmark[]>([]);
+  const [projections, setProjections] = useState<Projection[]>([]);
+  const [currentYear, setCurrentYear] = useState<number | null>(null);
   
   // Filter states
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
@@ -65,9 +77,15 @@ const Dashboard: React.FC = () => {
     const options = extractFilterOptions(data);
     setFilterOptions(options);
     
-    // Calculate initial metrics and chart data
+    // Find current year (most recent year in data)
+    const years = data.map(item => item.year);
+    const maxYear = Math.max(...years);
+    setCurrentYear(maxYear);
+    
+    // Calculate initial metrics, chart data, benchmarks and projections
     updateMetrics(data);
     updateChartData(data);
+    updateBenchmarksAndProjections(data);
   };
   
   // Handle filter changes
@@ -77,6 +95,7 @@ const Dashboard: React.FC = () => {
     setFilteredData(newFilteredData);
     updateMetrics(newFilteredData);
     updateChartData(newFilteredData);
+    updateBenchmarksAndProjections(newFilteredData);
   };
   
   // Handle preprocessing request
@@ -85,6 +104,7 @@ const Dashboard: React.FC = () => {
     setFilteredData(processedData);
     updateMetrics(processedData);
     updateChartData(processedData);
+    updateBenchmarksAndProjections(processedData);
   };
   
   // Helper function to update metrics
@@ -97,6 +117,12 @@ const Dashboard: React.FC = () => {
   const updateChartData = (data: ForestData[]) => {
     setStateChartData(prepareStateChartData(data));
     setYearChartData(prepareYearChartData(data));
+  };
+  
+  // Helper function to update benchmarks and projections
+  const updateBenchmarksAndProjections = (data: ForestData[]) => {
+    setBenchmarks(calculateBenchmarks(data));
+    setProjections(calculateProjections(data));
   };
   
   return (
@@ -142,7 +168,7 @@ const Dashboard: React.FC = () => {
             )}
             
             {isDataLoaded && !showUpload && (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <h1 className="text-2xl font-bold">India Forest Pulse Dashboard</h1>
                   <div className="flex items-center gap-2">
@@ -196,6 +222,19 @@ const Dashboard: React.FC = () => {
                     </>
                   )}
                 </div>
+                
+                {/* Benchmarks Section */}
+                {benchmarks.length > 0 && (
+                  <BenchmarksDisplay benchmarks={benchmarks} />
+                )}
+                
+                {/* Projections Section */}
+                {projections.length > 0 && (
+                  <ProjectionsDisplay 
+                    projections={projections} 
+                    currentYear={currentYear || new Date().getFullYear()} 
+                  />
+                )}
               </div>
             )}
           </main>
