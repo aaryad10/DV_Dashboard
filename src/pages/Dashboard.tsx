@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   ForestData, 
@@ -115,7 +114,7 @@ const Dashboard: React.FC = () => {
             onShowUpload={() => setShowUpload(true)}
           />
           
-          <main className="flex-1 p-4 md:p-6 ml-[80px] md:ml-[320px]">
+          <main className="flex-1 p-4 md:p-6 ml-[80px] md:ml-[320px] max-w-screen-2xl mx-auto w-full">
             {!isDataLoaded && !showUpload && (
               <div className="flex flex-col items-center justify-center min-h-[calc(100vh-48px)]">
                 <div className="h-24 w-24 rounded-full bg-forest/20 flex items-center justify-center mb-6">
