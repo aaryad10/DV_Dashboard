@@ -3,6 +3,7 @@ import React from 'react';
 import { Projection } from '@/types/forest-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 
 interface ProjectionsDisplayProps {
   projections: Projection[];
@@ -23,12 +24,12 @@ const ProjectionsDisplay: React.FC<ProjectionsDisplayProps> = ({ projections, cu
   const sortedProjections = [...projections].sort((a, b) => a.year - b.year);
 
   return (
-    <div className="mt-8">
-      <h2 className="text-xl font-semibold mb-4">Future Projections</h2>
+    <div className="mt-8 w-full max-w-screen-xl mx-auto">
+      <h2 className="text-xl font-semibold mb-4 text-center">Future Projections</h2>
       
       <Card>
         <CardHeader>
-          <CardTitle>Forest Change Projections</CardTitle>
+          <CardTitle className="text-center">Forest Change Projections</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[300px]">
@@ -89,21 +90,28 @@ const ProjectionsDisplay: React.FC<ProjectionsDisplayProps> = ({ projections, cu
           </div>
           
           <div className="mt-6 space-y-4">
-            <h3 className="text-lg font-medium">Key Projection Points:</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <h3 className="text-lg font-medium text-center">Key Projection Points:</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 justify-center">
               {sortedProjections.map((projection, index) => (
                 <Card 
                   key={`projection-${index}`} 
-                  className={`border ${projection.isSpecial ? 'border-forest bg-forest/5' : ''}`}
+                  className={`border ${projection.isSpecial ? 'border-forest bg-forest/5' : ''} w-full max-w-sm mx-auto`}
                 >
                   <CardContent className="pt-4">
-                    <div className="text-lg font-bold mb-1">
-                      {projection.year} 
-                      {projection.isSpecial && <span className="text-forest ml-2">(Key Milestone)</span>}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-lg font-bold">
+                        {projection.year} 
+                        {projection.isSpecial && <span className="text-forest ml-2">(Key Milestone)</span>}
+                      </div>
+                      {projection.netChange >= 0 ? (
+                        <ChevronUp className="text-reforest" />
+                      ) : (
+                        <ChevronDown className="text-deforest" />
+                      )}
                     </div>
-                    <p className="text-sm text-muted-foreground mb-3">{projection.description}</p>
+                    <p className="text-sm text-muted-foreground mb-3 text-center">{projection.description}</p>
                     
-                    <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div className="grid grid-cols-3 gap-2 text-sm text-center">
                       <div>
                         <div className="font-medium text-deforest">Deforestation</div>
                         <div>{projection.deforestation.toLocaleString(undefined, {maximumFractionDigits: 1})} ha</div>
@@ -125,7 +133,7 @@ const ProjectionsDisplay: React.FC<ProjectionsDisplayProps> = ({ projections, cu
               ))}
             </div>
             
-            <div className="text-sm text-muted-foreground mt-4 p-4 border rounded bg-gray-50">
+            <div className="text-sm text-muted-foreground mt-4 p-4 border rounded bg-gray-50 text-center">
               <strong>Note:</strong> These projections are based on linear trend analysis of data from 
               {currentYear ? ` ${projections[0]?.description.split(' ')[3] || ''} to ${currentYear}` : ' available years'}.
               Actual future values may vary based on policy changes, climate events, and conservation efforts.
