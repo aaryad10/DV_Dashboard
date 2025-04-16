@@ -102,7 +102,7 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <SidebarProvider>
-        <div className="flex w-full">
+        <div className="flex w-full max-w-screen-2xl mx-auto">
           <DashboardSidebar 
             isDataLoaded={isDataLoaded}
             filterOptions={filterOptions}
@@ -114,7 +114,7 @@ const Dashboard: React.FC = () => {
             onShowUpload={() => setShowUpload(true)}
           />
           
-          <main className="flex-1 p-4 md:p-6 ml-[80px] md:ml-[320px] max-w-screen-2xl mx-auto w-full">
+          <main className="flex-1 p-4 md:p-6 w-full ml-[80px] md:ml-[320px]">
             {!isDataLoaded && !showUpload && (
               <div className="flex flex-col items-center justify-center min-h-[calc(100vh-48px)]">
                 <div className="h-24 w-24 rounded-full bg-forest/20 flex items-center justify-center mb-6">
