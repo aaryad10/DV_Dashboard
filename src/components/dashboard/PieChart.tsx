@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { ChartData } from '@/types/forest-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -135,7 +136,7 @@ const PieChart: React.FC<PieChartProps> = ({
                   />
                 ))}
               </Pie>
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip active={false} payload={[]} />} />
               <Legend 
                 layout="horizontal" 
                 verticalAlign="bottom" 

@@ -30,14 +30,68 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
       let data: ForestData[] = [];
       
       // Parse file based on its type
-      if (file.name.endsWith('.csv')) {
+      if (file.name.toLowerCase().endsWith('.csv')) {
         setProgress(40);
         data = await parseCSV(file);
-      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+      } else if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
         setProgress(40);
         data = await parseXLSX(file);
+      } else if (file.name.toLowerCase().endsWith('.json')) {
+        setProgress(40);
+        // Handle JSON files
+        const fileReader = new FileReader();
+        data = await new Promise((resolve, reject) => {
+          fileReader.onload = (e) => {
+            try {
+              const result = e.target?.result as string;
+              const jsonData = JSON.parse(result);
+              resolve(Array.isArray(jsonData) ? jsonData : []);
+            } catch (error) {
+              reject(new Error('Invalid JSON format.'));
+            }
+          };
+          fileReader.onerror = () => reject(new Error('Failed to read file.'));
+          fileReader.readAsText(file);
+        });
+      } else if (file.name.toLowerCase().endsWith('.txt')) {
+        setProgress(40);
+        // Handle TXT files - assume tab or comma delimited
+        const fileReader = new FileReader();
+        data = await new Promise((resolve, reject) => {
+          fileReader.onload = (e) => {
+            try {
+              const result = e.target?.result as string;
+              const lines = result.split('\n').filter(line => line.trim());
+              
+              // Detect delimiter (comma, tab, or semicolon)
+              const firstLine = lines[0];
+              let delimiter = ',';
+              if (firstLine.includes('\t')) delimiter = '\t';
+              else if (firstLine.includes(';')) delimiter = ';';
+              
+              // Extract headers
+              const headers = lines[0].split(delimiter).map(h => h.trim());
+              
+              // Process data rows
+              const jsonData = lines.slice(1).map(line => {
+                const values = line.split(delimiter);
+                const row: any = {};
+                headers.forEach((header, index) => {
+                  row[header] = values[index]?.trim() || '';
+                });
+                return row;
+              });
+              
+              resolve(jsonData);
+            } catch (error) {
+              reject(new Error('Invalid text file format.'));
+            }
+          };
+          fileReader.onerror = () => reject(new Error('Failed to read file.'));
+          fileReader.readAsText(file);
+        });
       } else {
-        throw new Error('Unsupported file format. Please upload a CSV or Excel file.');
+        throw new Error('Unsupported file format. Please upload a CSV, Excel, JSON, or TXT file.');
       }
 
       setProgress(70);
@@ -66,6 +120,8 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
       'text/csv': ['.csv'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'application/vnd.ms-excel': ['.xls'],
+      'application/json': ['.json'],
+      'text/plain': ['.txt'],
     },
     maxFiles: 1,
   });
@@ -91,10 +147,10 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
                 <div className="space-y-2">
                   <h3 className="font-medium text-lg">Upload Forest Data</h3>
                   <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                    Drag & drop a CSV or Excel file, or click to browse
+                    Drag & drop a CSV, Excel, JSON, or TXT file, or click to browse
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Files should contain state, year, deforestation, and reforestation columns
+                    Files should include data about region/state, year, deforestation, and reforestation
                   </p>
                 </div>
                 <Button type="button" variant="outline" className="mt-2">
@@ -161,12 +217,14 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
           <div className="space-y-4 mt-4">
             <Alert variant="default">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Sample Data Format</AlertTitle>
-              <AlertDescription className="text-xs font-mono mt-2 overflow-x-auto">
-                state,year,deforestation,reforestation<br />
-                Maharashtra,2018,120.5,75.2<br />
-                Karnataka,2018,93.7,105.8<br />
-                Kerala,2019,45.2,65.9
+              <AlertTitle>Supported Data Formats</AlertTitle>
+              <AlertDescription className="text-xs mt-2">
+                <div className="font-mono overflow-x-auto">
+                  <p className="mb-1"><strong>CSV/Excel:</strong> state/region, year, deforestation, reforestation</p>
+                  <p className="mb-1"><strong>Alternative column names:</strong> area, date, forest_loss, forest_gain</p>
+                  <p className="mb-1"><strong>JSON:</strong> Array of objects with above properties</p>
+                  <p><strong>TXT:</strong> Tab, comma, or semicolon delimited with headers</p>
+                </div>
               </AlertDescription>
             </Alert>
             

@@ -1,3 +1,4 @@
+
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { ForestData, AggregatedMetrics, ChartData, FilterValues, Benchmark, Projection } from '@/types/forest-data';
@@ -9,6 +10,7 @@ export const parseCSV = (file: File): Promise<ForestData[]> => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      transformHeader: (header) => header.trim().toLowerCase(),
       complete: (results) => {
         try {
           const parsedData = results.data.map((item: any) => processRow(item));
@@ -33,6 +35,16 @@ export const parseXLSX = async (file: File): Promise<ForestData[]> => {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'binary' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        
+        // Convert headers to lowercase for consistent processing
+        const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:Z1');
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cell = worksheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
+          if (cell && cell.t === 's') {
+            cell.v = cell.v.trim().toLowerCase();
+          }
+        }
+        
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
         const parsedData = jsonData.map((item: any) => processRow(item));
         resolve(parsedData);
@@ -45,13 +57,106 @@ export const parseXLSX = async (file: File): Promise<ForestData[]> => {
   });
 };
 
+// Helper function to identify column mapping
+const identifyColumnMapping = (row: any): { 
+  stateField: string, 
+  yearField: string, 
+  deforestationField: string, 
+  reforestationField: string 
+} => {
+  // Convert all keys to lowercase for consistent checking
+  const normalizedRow: Record<string, any> = {};
+  Object.keys(row).forEach(key => {
+    normalizedRow[key.toLowerCase()] = row[key];
+  });
+  
+  // Possible field names for each data type
+  const stateCandidates = ['state', 'region', 'area', 'province', 'district', 'location', 'territory'];
+  const yearCandidates = ['year', 'date', 'period', 'time', 'yr'];
+  const deforestationCandidates = ['deforestation', 'forest_loss', 'treeloss', 'tree_loss', 'loss', 'forest_decrease', 'logging'];
+  const reforestationCandidates = ['reforestation', 'forest_gain', 'treegain', 'tree_gain', 'gain', 'forest_increase', 'planting'];
+  
+  // Find the actual column names
+  const stateField = Object.keys(normalizedRow).find(key => 
+    stateCandidates.some(candidate => key.includes(candidate.toLowerCase()))) || '';
+  
+  const yearField = Object.keys(normalizedRow).find(key => 
+    yearCandidates.some(candidate => key.includes(candidate.toLowerCase()))) || '';
+  
+  const deforestationField = Object.keys(normalizedRow).find(key => 
+    deforestationCandidates.some(candidate => key.includes(candidate.toLowerCase()))) || '';
+  
+  const reforestationField = Object.keys(normalizedRow).find(key => 
+    reforestationCandidates.some(candidate => key.includes(candidate.toLowerCase()))) || '';
+  
+  return { stateField, yearField, deforestationField, reforestationField };
+};
+
 // Helper function to process each row of data
 const processRow = (row: any): ForestData => {
-  // Try different possible column names for flexibility
-  const state = row.state || row.State || row.STATE || row.region || row.Region || '';
-  const year = parseInt(row.year || row.Year || row.YEAR || row.date || row.Date || '0', 10);
-  const deforestation = parseFloat(row.deforestation || row.Deforestation || row.forest_loss || row.ForestLoss || '0');
-  const reforestation = parseFloat(row.reforestation || row.Reforestation || row.forest_gain || row.ForestGain || '0');
+  // Convert all keys to lowercase for consistent processing
+  const normalizedRow: Record<string, any> = {};
+  Object.keys(row).forEach(key => {
+    normalizedRow[key.toLowerCase()] = row[key];
+  });
+  
+  // Identify column mapping
+  const { stateField, yearField, deforestationField, reforestationField } = identifyColumnMapping(normalizedRow);
+  
+  // Extract values using the identified column mapping
+  let state = '';
+  if (stateField) {
+    state = String(normalizedRow[stateField.toLowerCase()]);
+  } else {
+    // Fallback: try all possible state field names
+    for (const key of Object.keys(normalizedRow)) {
+      if (typeof normalizedRow[key] === 'string' && !isNumeric(normalizedRow[key])) {
+        state = String(normalizedRow[key]);
+        break;
+      }
+    }
+  }
+  
+  let year = 0;
+  if (yearField) {
+    year = parseYearValue(normalizedRow[yearField.toLowerCase()]);
+  } else {
+    // Fallback: try to find a numeric field that looks like a year
+    for (const key of Object.keys(normalizedRow)) {
+      const value = normalizedRow[key];
+      if (isNumeric(value)) {
+        const num = parseFloat(value);
+        if (num >= 1900 && num <= new Date().getFullYear()) {
+          year = num;
+          break;
+        }
+      }
+    }
+  }
+  
+  let deforestation = 0;
+  if (deforestationField) {
+    deforestation = parseFloat(normalizedRow[deforestationField.toLowerCase()]) || 0;
+  } else {
+    // Fallback: try to find numeric fields
+    const numericFields = Object.keys(normalizedRow)
+      .filter(key => isNumeric(normalizedRow[key]) && !yearField.includes(key));
+    if (numericFields.length >= 1) {
+      deforestation = parseFloat(normalizedRow[numericFields[0]]) || 0;
+    }
+  }
+  
+  let reforestation = 0;
+  if (reforestationField) {
+    reforestation = parseFloat(normalizedRow[reforestationField.toLowerCase()]) || 0;
+  } else {
+    // Fallback: try to find numeric fields
+    const numericFields = Object.keys(normalizedRow)
+      .filter(key => isNumeric(normalizedRow[key]) && !yearField.includes(key) && key !== deforestationField);
+    if (numericFields.length >= 1) {
+      reforestation = parseFloat(normalizedRow[numericFields[0]]) || 0;
+    }
+  }
   
   // Calculate net change
   const netChange = reforestation - deforestation;
@@ -66,6 +171,41 @@ const processRow = (row: any): ForestData => {
   };
 };
 
+// Helper function to check if a value is numeric
+const isNumeric = (value: any): boolean => {
+  if (typeof value === 'number') return true;
+  if (typeof value !== 'string') return false;
+  return !isNaN(parseFloat(value)) && isFinite(Number(value));
+};
+
+// Helper function to parse year values from various formats
+const parseYearValue = (value: any): number => {
+  if (typeof value === 'number') return Math.floor(value);
+  
+  if (typeof value === 'string') {
+    // Try to parse directly as a number first
+    if (isNumeric(value)) return Math.floor(Number(value));
+    
+    // Try to parse as a date string
+    try {
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        return date.getFullYear();
+      }
+    } catch (e) {
+      // Not a valid date string
+    }
+    
+    // Try to extract a year from the string (e.g., "2020-01" or "Jan 2020")
+    const yearMatch = value.match(/\b(19|20)\d{2}\b/);
+    if (yearMatch) {
+      return parseInt(yearMatch[0], 10);
+    }
+  }
+  
+  return 0; // Default value if parsing fails
+};
+
 // Function to preprocess data (clean and validate)
 export const preprocessData = (data: ForestData[]): ForestData[] => {
   return data
@@ -73,8 +213,6 @@ export const preprocessData = (data: ForestData[]): ForestData[] => {
       // Filter out rows with missing or invalid data
       row.state && 
       !isNaN(row.year) && 
-      !isNaN(row.deforestation) && 
-      !isNaN(row.reforestation) &&
       row.year > 1900 && 
       row.year <= new Date().getFullYear()
     ))
