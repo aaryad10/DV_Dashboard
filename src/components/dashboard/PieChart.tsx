@@ -1,8 +1,10 @@
-
-import React from 'react';
+import React, { useRef } from 'react';
 import { ChartData } from '@/types/forest-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart as RechartsPieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
+import { saveAs } from 'file-saver';
 
 interface PieChartProps {
   data: ChartData[];
@@ -11,7 +13,6 @@ interface PieChartProps {
   height?: number;
 }
 
-// Enhanced color palettes with better visual harmony
 const COLORS = {
   deforestation: [
     '#E76F51', '#F4A261', '#E9C46A', '#2A9D8F', '#264653', 
@@ -25,13 +26,10 @@ const COLORS = {
   ]
 };
 
-// Custom rendering for the label to make it cleaner
 const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }) => {
-  // Only show label for segments with enough space (more than 5%)
   if (percent < 0.05) return null;
   
   const RADIAN = Math.PI / 180;
-  // Position the label outside the pie
   const radius = outerRadius * 1.1;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -51,7 +49,6 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
   );
 };
 
-// Custom tooltip component for better styling
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     return (
@@ -76,10 +73,8 @@ const PieChart: React.FC<PieChartProps> = ({
   dataKey,
   height = 400 
 }) => {
-  // Filter out items with zero values
   const filteredData = data.filter(item => item[dataKey] > 0);
   
-  // Calculate percentages for each slice
   const total = filteredData.reduce((sum, item) => sum + item[dataKey], 0);
   const pieData = filteredData.map(item => ({
     name: item.name,
@@ -87,10 +82,33 @@ const PieChart: React.FC<PieChartProps> = ({
     percent: item[dataKey] / total
   }));
 
+  const exportToCsv = () => {
+    const csvContent = [
+      ['Name', 'Value', 'Percentage'],
+      ...pieData.map(item => [
+        item.name, 
+        item.value.toFixed(2), 
+        (item.percent * 100).toFixed(2) + '%'
+      ])
+    ].map(e => e.join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `${title.replace(/\s+/g, '_').toLowerCase()}_pie_chart_data.csv`);
+  };
+
   return (
     <Card className="w-full overflow-hidden">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-center text-lg">{title}</CardTitle>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={exportToCsv}
+          className="flex items-center gap-2"
+        >
+          <Download size={16} />
+          Export
+        </Button>
       </CardHeader>
       <CardContent>
         <div className="w-full h-[calc(100%-40px)]">
@@ -103,10 +121,10 @@ const PieChart: React.FC<PieChartProps> = ({
                 labelLine={false}
                 label={renderCustomizedLabel}
                 outerRadius={height / 3}
-                innerRadius={height / 10} // Add inner radius to create a donut effect
+                innerRadius={height / 10}
                 fill="#8884d8"
                 dataKey="value"
-                paddingAngle={2} // Add space between segments
+                paddingAngle={2}
               >
                 {pieData.map((entry, index) => (
                   <Cell 
